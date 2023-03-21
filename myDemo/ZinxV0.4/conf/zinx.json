@@ -1,0 +1,6 @@
+{
+  "Name": "zinx V0.4 demo server",
+  "Host": "127.0.0.1",
+  "TCPPort": 8977,
+  "MaxConn": 3
+}

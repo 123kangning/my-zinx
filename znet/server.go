@@ -2,6 +2,7 @@ package znet
 
 import (
 	"fmt"
+	"my-zinx/utils"
 	"my-zinx/ziface"
 	"net"
 )
@@ -22,7 +23,8 @@ type Server struct {
 
 // Start 启动服务器
 func (s *Server) Start() {
-	fmt.Printf("[Start] Server Listenner ar IP:%s,Port %d,is atarting\n", s.IP, s.Port)
+	//以后可以统一打到日志文件中
+	fmt.Printf("[Zinx] Server Name :%s Server Listenner ar IP:%s,Port %d,is atarting\n", s.Name, s.IP, s.Port)
 	go func() {
 		//1 获取一个TCP的addr
 		addr, err := net.ResolveTCPAddr(s.TCPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
@@ -74,10 +76,10 @@ func (s *Server) Serve() {
 // NewServer 初始化Server模块方法
 func NewServer(name string) ziface.IServer {
 	s := &Server{
-		Name:       name,
+		Name:       utils.GlobalObject.Name,
 		TCPVersion: "tcp4",
-		IP:         "0.0.0.0",
-		Port:       8999,
+		IP:         utils.GlobalObject.Host,
+		Port:       utils.GlobalObject.TcpPort,
 		Router:     nil,
 	}
 	return s
