@@ -32,6 +32,7 @@ var GlobalObject *GlobalObj
 Reload 从zinx.json去加载用于自定义的参数
 */
 func (g *GlobalObj) Reload() {
+	//testPath:="../myDemo/ZinxV0.4/conf/zinx.json"
 	data, err := os.ReadFile("conf/zinx.json")
 	if err != nil {
 		panic(err)
@@ -54,9 +55,9 @@ func Init() {
 		TcpPort:        8999,
 		Host:           "0.0.0.0",
 		MaxConn:        1000,
-		MaxPackageSize: 4096,
+		MaxPackageSize: 409600,
 	}
 
 	//应该尝试从conf/zinx.json去加载一些用户自定义的参数
-	GlobalObject.Reload()
+	//GlobalObject.Reload()
 }

@@ -1,8 +1,8 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
-	"my-zinx/utils"
 	"my-zinx/ziface"
 	"net"
 )
@@ -43,16 +43,24 @@ func (c *Connection) StartReader() {
 
 	for {
 		//读取客户端的数据到buf中，最大 512 字节的存储
-		buf := make([]byte, utils.GlobalObject.MaxPackageSize)
-		_, err := c.Conn.Read(buf)
+		//buf := make([]byte, utils.GlobalObject.MaxPackageSize)
+		//_, err := c.Conn.Read(buf)
+		//if err != nil {
+		//	fmt.Println("recv buf err", err)
+		//	continue
+		//}
+		//创建一个拆包解包对象
+		dp := NewDataPack()
+		//拆包，得到msg.ID 和 msgDataLen放在msg消息中
+		msg, err := dp.UnPack(c.Conn)
 		if err != nil {
-			fmt.Println("recv buf err", err)
-			continue
+			fmt.Println(err.Error())
+			break
 		}
 		//得到当前conn连接的Request请求数据
 		req := Request{
 			conn: c,
-			data: buf,
+			msg:  msg,
 		}
 
 		//从路由中，找到注册绑定的Conn对应的router调用,执行注册的路由方法
@@ -103,7 +111,22 @@ func (c *Connection) RemoteAddr() net.Addr {
 	return c.Conn.RemoteAddr()
 }
 
-// Send 发送数据，将数据发送给远程客户端
-func (c *Connection) Send(data []byte) error {
+// SendMsg 发送数据，将数据发送给远程客户端
+func (c *Connection) SendMsg(msgId uint32, data []byte) error {
+	if c.IsClosed {
+		return errors.New("Connection close ")
+	}
+	//将data进行封包 MsgDataLen/MsgID/Data
+	dp := NewDataPack()
+	binaryMsg, err := dp.Pack(NewMessage(msgId, data))
+	if err != nil {
+		fmt.Println("pack error ", err, " msgId = ", msgId)
+		return errors.New("pack error ")
+	}
+	//将数据发送给客户端
+	if _, err := c.Conn.Write(binaryMsg); err != nil {
+		fmt.Println("write msg error ", err, " msgId = ", msgId)
+		return errors.New("write msg error ")
+	}
 	return nil
 }
