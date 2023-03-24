@@ -50,7 +50,7 @@ func (s *Server) Start() {
 				continue
 			}
 			//将处理新连接的业务方法和conn进行绑定，得到我们的连接模块
-			dealConn := NewConnection(conn, cid)
+			dealConn := NewConnection(conn, cid, s.MsgHandler)
 			cid++
 			//启动当前的连接业务处理
 			go dealConn.Start()

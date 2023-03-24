@@ -17,20 +17,23 @@ type Connection struct {
 	ConnID uint32
 	//当前的连接状态
 	IsClosed bool
-	//告知当前连接已经退出/停止的 channel
+	//告知当前连接已经退出/停止的 channel(由reader告知writer退出)
 	ExitChan chan bool
+	//用于读，写Goroutine之间的消息通信的管道 缓冲区大小为10
+	msgChan chan []byte
 	//当前Server的消息管理模块，用来绑定MsgID和对应的处理业务API的关系
 	MsgHandler ziface.IMsgHandle
 }
 
 // NewConnection 初始化连接模块的方法
-func NewConnection(conn *net.TCPConn, connID uint32) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, handler ziface.IMsgHandle) *Connection {
 	c := &Connection{
 		Conn:       conn,
 		ConnID:     connID,
 		IsClosed:   false,
 		ExitChan:   make(chan bool, 1),
-		MsgHandler: NewMsgHandle(),
+		msgChan:    make(chan []byte, 10),
+		MsgHandler: handler,
 	}
 	return c
 }
@@ -68,13 +71,34 @@ func (c *Connection) StartReader() {
 	}
 }
 
+// StartWriter 连接的写业务处理,专门发送给客户端消息的模块
+func (c *Connection) StartWriter() {
+	fmt.Println("Writer Goroutine is running...")
+	defer fmt.Println("connID = ", c.ConnID, " Writer is exit,remote addr is ", c.RemoteAddr().String())
+	defer c.Stop()
+	//不断的阻塞的等待channel的消息，进行写给客户端
+	for {
+		select {
+		case data := <-c.msgChan:
+			//有数据要写给客户端
+			if _, err := c.Conn.Write(data); err != nil {
+				fmt.Println("Send data error ", err)
+				return
+			}
+		case <-c.ExitChan:
+			//代表Reader已经退出，此时Write也要退出
+			return
+		}
+	}
+}
+
 // Start 启动连接，让当前的连接准备开始工作
 func (c *Connection) Start() {
 	fmt.Println("Conn Start()... ConnID = ", c.ConnID)
 	//启动从当前连接的读数据的业务
 	go c.StartReader()
 	//启动从当前连接的写数据的业务
-
+	go c.StartWriter()
 }
 
 // Stop 停止连接 结束当前连接的工作
@@ -87,8 +111,11 @@ func (c *Connection) Stop() {
 	c.IsClosed = true
 	//关闭socket连接
 	c.Conn.Close()
+	//告知Writer关闭(close(c.ExitChan)之后，c.ExitChan可读，就不用这一步，先写上)
+	c.ExitChan <- true
 	//回收资源
 	close(c.ExitChan)
+	close(c.msgChan)
 }
 
 // GetTCPConnection 获取当前连接所绑定的socket connection
@@ -118,10 +145,7 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 		fmt.Println("pack error ", err, " msgId = ", msgId)
 		return errors.New("pack error ")
 	}
-	//将数据发送给客户端
-	if _, err := c.Conn.Write(binaryMsg); err != nil {
-		fmt.Println("write msg error ", err, " msgId = ", msgId)
-		return errors.New("write msg error ")
-	}
+	//将数据发送给Writer Goroutine
+	c.msgChan <- binaryMsg
 	return nil
 }
