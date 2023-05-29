@@ -17,7 +17,7 @@ type Server struct {
 	IP string
 	//服务器监听的端口
 	Port int
-	//当前Server的消息管理模块，用来绑定MsgID和对应的处理业务API的关系
+	//当前Server的消息管理模块，用来绑定MsgID和对应的处理业务API的关系,一般是用户绑定的
 	MsgHandler ziface.IMsgHandle
 }
 
@@ -26,6 +26,7 @@ func (s *Server) Start() {
 	//以后可以统一打到日志文件中
 	fmt.Printf("[Zinx] Server Name :%s Server Listenner ar IP:%s,Port %d,is atarting\n", s.Name, s.IP, s.Port)
 	go func() {
+		go s.MsgHandler.StartWorkerPool()
 		//1 获取一个TCP的addr
 		addr, err := net.ResolveTCPAddr(s.TCPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {

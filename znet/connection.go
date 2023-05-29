@@ -3,6 +3,7 @@ package znet
 import (
 	"errors"
 	"fmt"
+	"my-zinx/utils"
 	"my-zinx/ziface"
 	"net"
 )
@@ -21,7 +22,7 @@ type Connection struct {
 	ExitChan chan bool
 	//用于读，写Goroutine之间的消息通信的管道 缓冲区大小为10
 	msgChan chan []byte
-	//当前Server的消息管理模块，用来绑定MsgID和对应的处理业务API的关系
+	//当前Server的消息管理模块，用来绑定MsgID和对应的处理业务API的关系，一般是从serve中直接拿过来
 	MsgHandler ziface.IMsgHandle
 }
 
@@ -66,7 +67,11 @@ func (c *Connection) StartReader() {
 			msg:  msg,
 		}
 
-		go c.MsgHandler.DoMsgHandler(&req)
+		if utils.GlobalObject.WorkerPoolSize > 0 {
+			c.MsgHandler.SendMsgToTaskQueue(&req)
+		} else {
+			go c.MsgHandler.DoMsgHandler(&req)
+		}
 
 	}
 }
